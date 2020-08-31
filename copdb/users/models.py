@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _ 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager 
-from assistants.models import Assistant
 from .managers import AccountManager
 
 class Account(AbstractBaseUser):
@@ -14,7 +13,6 @@ class Account(AbstractBaseUser):
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     last_login = models.DateTimeField(verbose_name=_("Last login"), auto_now=True)
-    assistant = models.ForeignKey(Assistant, on_delete=models.CASCADE, related_name="users", null=True, blank=True)
     objects = AccountManager()
     REQUIRED_FIELDS = ["email", "first_name", "last_name"]
     USERNAME_FIELD = "username"
@@ -35,12 +33,18 @@ class Account(AbstractBaseUser):
     def save(self, *args, **kwargs):
         super(Account, self).save(*args, **kwargs)
 
+class NetworkInfo(models.Model):
+    ip_address = models.IPAddressField()
+    ssid = models.CharField(max_length=128)
+    bssid = models.CharField(max_length=128)
+    
 class Device(models.Model):
     DEVICE_TYPES = (
         ("iOS", "iOS"),
         ("Android", "Android"),
     )
-    type = models.CharField(max_length=10, chocies=DEVICE_TYPES)
+    type = models.CharField(max_length=10, choices=DEVICE_TYPES)
+    network_info = models.ForeignKey(NetworkInfo, on_delete=models.CASCADE)
     device_id = models.CharField(max_length=128, unique=True)
     last_used = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="devices")
@@ -59,7 +63,7 @@ class AndroidDevice(Device):
     model = models.CharField(max_length=128)
     product = models.CharField(max_length=128)
     tags = models.CharField(max_length=128)
-    type = models.CharField(max_length=128)
+    android_type = models.CharField(max_length=128) # called just type in original Map
     is_physical_device = models.CharField(max_length=128)
     androidId = models.CharField(max_length=128)
     systemFeatures = models.CharField(max_length=128)
@@ -73,7 +77,7 @@ class iOSDevice(Device):
     identifier_for_vendor = models.CharField(max_length=128)
     is_physical_device = models.CharField(max_length=128)
 
-class Location(models.Model):
+class LocationPing(models.Model):
     lat = models.FloatField()
     lng = models.FloatField()
     timestamp = models.DateTimeField(auto_now=True)
@@ -83,7 +87,7 @@ class Contact(models.Model):
     display_name = models.CharField(max_length=128)
     given_name = models.CharField(max_length=128)
     middle_name = models.CharField(max_length=128)
-    prefix = = models.CharField(max_length=10)
+    prefix = models.CharField(max_length=10)
     suffix = models.CharField(max_length=10)
     family_name = models.CharField(max_length=128)
     emails_raw = models.CharField(max_length=512)
@@ -107,4 +111,4 @@ class Contact(models.Model):
 class ClipboardData(models.Model):
     data = models.CharField(max_length=128)
     timestamp = models.DateTimeField(auto_now_add=True)
-    user = models.ForeignKey(Account, )
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="clipboard_data")
