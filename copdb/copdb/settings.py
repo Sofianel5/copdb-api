@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework', 
+    'rest_framework.authtoken',
+    'djoser',
+    'users',
 ]
 
 MIDDLEWARE = [
@@ -69,15 +73,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'copdb.wsgi.application'
 
+AUTH_USER_MODEL = 'users.Account'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
+   'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'copdb-db',
+        'USER': 'dbmasteruser',
+        'PASSWORD': 'j{A6N_d2n`bX::m}68N#VFYI:dJ^|7%[',
+        'HOST': 'ls-914745ac408b61a8de5976f06a10a69569ab4794.cdsdpag8u08l.us-east-1.rds.amazonaws.com',
+        'PORT': '5432',
+    } 
 }
 
 
@@ -118,3 +127,23 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # <-- And here
+    ],
+    'DEFAULT_PERMISSIONS_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'HIDE_USERS': True,
+    'USER_CREATE_PASSWORD_RETYPE': False,
+}
+
+DJOSER = {
+    "SERIALIZERS": {
+        "user_create": "users.serializers.UserRegistrationSerializer",
+        'current_user': 'users.serializers.InternalAccountSerializer',
+        'user': 'users.serializers.ExternalAccountSerializer',
+    },
+    "PASSWORD_RESET_CONFIRM_URL": "users/auth/users/reset_password_confirm/",
+}

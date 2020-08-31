@@ -33,4 +33,24 @@ class Account(AbstractBaseUser):
     
     def save(self, *args, **kwargs):
         super(Account, self).save(*args, **kwargs)
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # <-- And here
+    ],
+    'DEFAULT_PERMISSIONS_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'HIDE_USERS': True,
+    'USER_CREATE_PASSWORD_RETYPE': False,
+}
+
+DJOSER = {
+    "SERIALIZERS": {
+        "user_create": "users.serializers.UserRegistrationSerializer",
+        'current_user': 'users.serializers.InternalAccountSerializer',
+        'user': 'users.serializers.ExternalAccountSerializer',
+    },
+    "PASSWORD_RESET_CONFIRM_URL": "users/auth/users/reset_password_confirm/",
+}
     
