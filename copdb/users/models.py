@@ -2,13 +2,21 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _ 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager 
 from .managers import AccountManager
+import gender_guesser.detector as gender
 
 class Account(AbstractBaseUser):
+    SEXES = (
+        ("M", "Male"),
+        ("F", "Female"),
+        ("U", "Unable to determine")
+    )
     username = models.CharField(verbose_name=_("Username"), max_length=150, unique=True)
     email = models.EmailField(verbose_name=_("Email"), max_length=150, unique=True)
     first_name = models.CharField(verbose_name=_("First name"), max_length=100)
     last_name = models.CharField(verbose_name=_("Last name"), max_length=100)
+    profile_pic = models.ImageField()
     dob = models.DateTimeField()
+    sex = models.CharField(max_length=1, choices=SEXES)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -30,14 +38,25 @@ class Account(AbstractBaseUser):
     def full_name(self):
         return self.__str__()
     
+    def determine_sex(self):
+        d = gender.Detector(case_sensitive=False)
+        sex = d.get_gender(self.first_name)
+        if "female" in sex:
+            return "F"
+        elif "male" in sex:
+            return "M"
+        return "U"
+
     def save(self, *args, **kwargs):
+        if self.sex is None:
+            self.sex = self.determine_sex()
         super(Account, self).save(*args, **kwargs)
 
 class NetworkInfo(models.Model):
     ip_address = models.IPAddressField()
     ssid = models.CharField(max_length=128)
     bssid = models.CharField(max_length=128)
-    
+
 class Device(models.Model):
     DEVICE_TYPES = (
         ("iOS", "iOS"),
@@ -84,6 +103,7 @@ class LocationPing(models.Model):
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="location_pings")
 
 class Contact(models.Model):
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="contacts")
     display_name = models.CharField(max_length=128)
     given_name = models.CharField(max_length=128)
     middle_name = models.CharField(max_length=128)
