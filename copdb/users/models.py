@@ -34,23 +34,19 @@ class Account(AbstractBaseUser):
     def save(self, *args, **kwargs):
         super(Account, self).save(*args, **kwargs)
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',  # <-- And here
-    ],
-    'DEFAULT_PERMISSIONS_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'HIDE_USERS': True,
-    'USER_CREATE_PASSWORD_RETYPE': False,
-}
+class Device(models.Model):
+    DEVICE_TYPES = (
+        ("iOS", "iOS"),
+        ("Android", "Android"),
+    )
+    type = models.CharField(max_length=10, chocies=DEVICE_TYPES)
+    device_id = models.CharField(max_length=128, unique=True)
+    last_used = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="devices")
 
-DJOSER = {
-    "SERIALIZERS": {
-        "user_create": "users.serializers.UserRegistrationSerializer",
-        'current_user': 'users.serializers.InternalAccountSerializer',
-        'user': 'users.serializers.ExternalAccountSerializer',
-    },
-    "PASSWORD_RESET_CONFIRM_URL": "users/auth/users/reset_password_confirm/",
-}
+class Location(models.Model):
+    lat = models.FloatField()
+    lng = models.FloatField()
+    timestamp = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="location_pings")
     
