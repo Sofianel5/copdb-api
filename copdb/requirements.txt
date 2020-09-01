@@ -4,3 +4,4 @@ djangorestframework
 djoser
 gender-guesser
 requests
+Pillow

@@ -4,6 +4,11 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from .managers import AccountManager
 import gender_guesser.detector as gender
 
+class Connection(models.Model):
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    creator = models.ForeignKey("users.Account", related_name="friendship_creator_set", on_delete=models.CASCADE)
+    following = models.ForeignKey("users.Account", related_name="friend_set", on_delete=models.CASCADE)
+
 class Account(AbstractBaseUser):
     SEXES = (
         ("M", "Male"),
@@ -16,7 +21,6 @@ class Account(AbstractBaseUser):
     last_name = models.CharField(verbose_name=_("Last name"), max_length=100)
     profile_pic = models.ImageField(blank=True, null=True)
     dob = models.DateTimeField()
-    friends = models.ManyToManyField(blank=True, null=True)
     sex = models.CharField(max_length=1, choices=SEXES)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
@@ -50,8 +54,8 @@ class Account(AbstractBaseUser):
     
     @property
     def following(self):
-  		connections = Connection.objects.filter(creator=self)
-  		return connections
+  	    connections = Connection.objects.filter(creator=self)
+  	    return connections
 
     @property
     def followers(self):
@@ -63,13 +67,8 @@ class Account(AbstractBaseUser):
             self.sex = self.determine_sex()
         super(Account, self).save(*args, **kwargs)
 
-class Connection(models.Model):
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-    creator = models.ForeignKey(Account, related_name="friendship_creator_set")
-    following = models.ForeignKey(Account, related_name="friend_set")
-
 class NetworkInfo(models.Model):
-    ip_address = models.IPAddressField()
+    ip_address = models.GenericIPAddressField()
     ssid = models.CharField(max_length=128)
     bssid = models.CharField(max_length=128)
 
