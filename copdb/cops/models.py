@@ -1,5 +1,5 @@
 from django.db import models
-
+from users.models import Account
 
 class Cop(models.Model):
     first_name = models.CharField(max_length=128)
@@ -22,7 +22,7 @@ class CCRBComplainer(Complainer):
         super(CCRBComplainer, self).save(*args, **kwargs)
 
 class CopDBComplainer(Complainer):
-    user = models.ForeignKey(Account)
+    user = models.ForeignKey(Account, on_delete=models.DO_NOTHING)
     def save(self, *args, **kwargs):
         self.name = user.username
         self.description = "CopDB user"
