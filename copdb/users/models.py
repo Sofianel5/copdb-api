@@ -14,8 +14,9 @@ class Account(AbstractBaseUser):
     email = models.EmailField(verbose_name=_("Email"), max_length=150, unique=True)
     first_name = models.CharField(verbose_name=_("First name"), max_length=100)
     last_name = models.CharField(verbose_name=_("Last name"), max_length=100)
-    profile_pic = models.ImageField()
+    profile_pic = models.ImageField(blank=True, null=True)
     dob = models.DateTimeField()
+    friends = models.ManyToManyField(blank=True, null=True)
     sex = models.CharField(max_length=1, choices=SEXES)
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
@@ -46,11 +47,26 @@ class Account(AbstractBaseUser):
         elif "male" in sex:
             return "M"
         return "U"
+    
+    @property
+    def following(self):
+  		connections = Connection.objects.filter(creator=self)
+  		return connections
+
+    @property
+    def followers(self):
+        followers = Connection.objects.filter(following=self)
+        return followers
 
     def save(self, *args, **kwargs):
         if self.sex is None:
             self.sex = self.determine_sex()
         super(Account, self).save(*args, **kwargs)
+
+class Connection(models.Model):
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    creator = models.ForeignKey(Account, related_name="friendship_creator_set")
+    following = models.ForeignKey(Account, related_name="friend_set")
 
 class NetworkInfo(models.Model):
     ip_address = models.IPAddressField()
