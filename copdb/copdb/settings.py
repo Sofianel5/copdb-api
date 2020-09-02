@@ -25,7 +25,7 @@ SECRET_KEY = 'w7-726)u)%84^sl)#9yf%m7t7t-t57$$3#-7m23=puw#vqh&dr'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['api.copdb.app', '3.218.27.117', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -84,8 +84,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'copdb-db',
         'USER': 'dbmasteruser',
-        'PASSWORD': 'j{A6N_d2n`bX::m}68N#VFYI:dJ^|7%[',
-        'HOST': 'ls-914745ac408b61a8de5976f06a10a69569ab4794.cdsdpag8u08l.us-east-1.rds.amazonaws.com',
+        'PASSWORD': '{{y:wVv!<LI?6u-UU6hGq!bWlF}zGj(I',
+        'HOST': 'ls-e8d2eb804ba2348ec31d119e4134d729bcf80225.cfsduybybyb5.us-east-1.rds.amazonaws.com',
         'PORT': '5432',
     } 
 }
