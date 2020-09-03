@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'djoser',
     'users',
     'cops',
+    'geolocation',
 ]
 
 MIDDLEWARE = [
@@ -90,6 +91,33 @@ DATABASES = {
     } 
 }
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(asctime)s %(message)s'
+        },
+    },
+    'handlers': {
+        'db_log': {
+            'level': 'DEBUG',
+            'class': 'django_db_logger.db_log_handler.DatabaseLogHandler'
+        },
+    },
+    'loggers': {
+        'db': {
+            'handlers': ['db_log'],
+            'level': 'DEBUG'
+        }
+    }
+}
+
+GEOIP_PATH = os.path.join(BASE_DIR, "geolocation", "services")
+
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
@@ -122,6 +150,8 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
+GOOGLE_KEY = "AIzaSyC24MIKKYi7s8lxwgTlAHe0wGaMiZeAhRY"
 
 
 # Static files (CSS, JavaScript, Images)

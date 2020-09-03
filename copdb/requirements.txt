@@ -5,3 +5,5 @@ djoser
 gender-guesser
 requests
 Pillow
+django-db-logger==0.1.9
+geoip2==3.0.0
