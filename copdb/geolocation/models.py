@@ -1,8 +1,8 @@
 from django.db import models
-from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from localflavor.us.models import USZipCodeField
 from localflavor.us.us_states import US_STATES
+from django.db.models.expressions import RawSQL
 from django.conf import settings
 import requests
 import math
@@ -33,6 +33,29 @@ class Coordinates(models.Model):
             raise e
     def to_csv(self):
         return str(self.lat) + ", " +str(self.lng)
+    
+    def get_locations_nearby_coords(latitude, longitude, max_distance=None):
+        """
+        Return objects sorted by distance to specified coordinates
+        which distance is less than max_distance given in kilometers
+        """
+        # Great circle distance formula
+        gcd_formula = "6371 * acos(least(greatest(\
+        cos(radians(%s)) * cos(radians(lat)) \
+        * cos(radians(lng) - radians(%s)) + \
+        sin(radians(%s)) * sin(radians(lat)) \
+        , -1), 1))"
+        distance_raw_sql = RawSQL(
+            gcd_formula,
+            (latitude, longitude, latitude)
+        )
+        qs = Coordinates.objects.all() \
+        .annotate(distance=distance_raw_sql)\
+        .order_by('distance')
+        if max_distance is not None:
+            qs = qs.filter(distance__lt=max_distance)
+        return qs
+
     def to_address(self):
         GOOGLE_KEY = settings.GOOGLE_KEY
         request = requests.get(f"https://maps.googleapis.com/maps/api/geocode/json?latlng={self.to_csv()}&key={GOOGLE_KEY}")
@@ -76,3 +99,10 @@ class Address(models.Model):
         except Exception as e:
             db_logger.exception(e)
             return None
+
+class CopDBCity(models.Model):
+    name = models.CharField(_("City"), max_length=128)
+    hq = models.ForeignKey(Address, on_delete=models.CASCADE, null=True, blank=True)
+    epicenter = models.ForeignKey(Coordinates, on_delete=models.CASCADE, null=True, blank=True, related_name="cities")
+    def __str__(self):
+        return self.name

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'users',
     'cops',
     'geolocation',
+    'database_size',
+    'django_db_logger',
 ]
 
 MIDDLEWARE = [
@@ -143,7 +145,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/New_York'
 
 USE_I18N = True
 
@@ -168,6 +170,8 @@ REST_FRAMEWORK = {
     ],
     'HIDE_USERS': True,
     'USER_CREATE_PASSWORD_RETYPE': False,
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 20,
 }
 
 DJOSER = {
@@ -178,3 +182,20 @@ DJOSER = {
     },
     "PASSWORD_RESET_CONFIRM_URL": "users/auth/users/reset_password_confirm/",
 }
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+AWS_ACCESS_KEY_ID = "AKIAUON5V5A26TORUU5C"
+AWS_SECRET_ACCESS_KEY = "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"
+STATICFILES_LOCATION = 'static'
+STATICFILES_STORAGE = 'custom_storages.StaticStorage'
+MEDIAFILES_LOCATION = 'media'
+DEFAULT_FILE_STORAGE = 'custom_storages.MediaStorage'
+
+AWS_S3_REGION_NAME = "us-east-1"
+AWS_STORAGE_BUCKET_NAME = 'copdb'
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+STATIC_URL = "https://%s/" % AWS_S3_CUSTOM_DOMAIN
+AWS_LOCATION = 'static'
+#AWS_S3_PUBLIC_URL_STATIC = "https://static.copdb.app/"
+AWS_DEFAULT_ACL = 'public-read'
