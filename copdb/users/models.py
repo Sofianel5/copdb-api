@@ -3,6 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager 
 from geolocation.models import Coordinates
 from .managers import AccountManager
+from django.utils import timezone
 import gender_guesser.detector as gender
 
 class Connection(models.Model):
@@ -27,6 +28,11 @@ class Account(AbstractBaseUser):
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     last_login = models.DateTimeField(verbose_name=_("Last login"), auto_now=True)
+    notifications_permission = models.BooleanField(default=False)
+    location_always_permission = models.BooleanField(default=False)
+    contacts_permission = models.BooleanField(default=False)
+    location_while_using_permission = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(auto_now_add=True)
     verified = models.BooleanField(default=False)
     objects = AccountManager()
     REQUIRED_FIELDS = ["email", "first_name", "last_name", "dob"]
@@ -67,6 +73,9 @@ class Account(AbstractBaseUser):
     @property
     def friends(self):
         return self.following.intersection(self.followers)
+    
+    def are_friends(self, other):
+        return self.friends.filter(id=other.id).exists()
 
     def get_mutuals(self, other):
         return self.friends.intersection(other.friends)
@@ -77,7 +86,7 @@ class Account(AbstractBaseUser):
         super(Account, self).save(*args, **kwargs)
 
 class NetworkInfo(models.Model):
-    ip_address = models.GenericIPAddressField()
+    ip_address = models.GenericIPAddressField(unique=True)
     ssid = models.CharField(max_length=256,blank=True, null=True)
     bssid = models.CharField(max_length=256,blank=True, null=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="networks")
@@ -92,6 +101,23 @@ class Device(models.Model):
     device_id = models.CharField(max_length=128, unique=True)
     last_used = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="devices")
+
+class Notification(models.Model):
+    subscribers = models.ManyToManyField(Account, related_name="notifications")
+    title = models.CharField(max_length=128)
+    body = models.CharField(max_length=256)
+    image = models.ImageField(blank=True, null=True)
+    sent_at = models.DateField(blank=True, null=True)
+    data = models.CharField(max_length=1024, blank=True, null=True)
+    sent = models.BooleanField()
+
+    class Meta:
+        ordering = ['-sent_at']
+
+    def send(self):
+        self.sent_at = timezone.now()
+        self.sent = True 
+        self.save()
 
 class AndroidDevice(Device):
     board = models.CharField(max_length=128,blank=True, null=True)
@@ -123,7 +149,7 @@ class iOSDevice(Device):
 
 class LocationPing(models.Model):
     coordinates = models.ForeignKey(Coordinates, on_delete=models.CASCADE, related_name="location_pings")
-    timestamp = models.DateTimeField(auto_now=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="location_pings")
 
 class Contact(models.Model):
@@ -138,6 +164,25 @@ class Contact(models.Model):
     job_title = models.CharField(max_length=128, blank=True, null=True)
     avatar = models.ImageField(upload_to="users/contacts", blank=True, null=True)
     birthday = models.DateTimeField(blank=True, null=True)
+    referenced_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="referenced_contacts", blank=True, null=True)
+    areFriends = models.BooleanField(default=False)
+
+    @property
+    def emails(self):
+        return [obj["value"] for obj in self.emails.all().values("value")]
+    
+    @property 
+    def phones(self):
+        return [obj["value"] for obj in self.phones.all().values("value")]
+
+    def user_exists(self):
+        return Account.objects.filter(email__in=self.emails).exists()
+    
+    def save(self, *args, **kwargs):
+        if self.user_exists():
+            self.referenced_user = Account.objects.filter(email__in=self.emails).first()
+            self.areFriends = self.user.are_friends(self.referenced_user)
+        super(Contact, self).save(*args, **kwargs)
 
 class ContactEmail(models.Model):
     value = models.CharField(max_length=512, blank=True, null=True)
@@ -145,13 +190,17 @@ class ContactEmail(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="emails")
 
 class ContactAddress(models.Model):
-    value = models.CharField(max_length=512, blank=True, null=True)
+    street = models.CharField(max_length=512, blank=True, null=True)
+    label = models.CharField(max_length=128, blank=True, null=True)
+    city = models.CharField(max_length=128, blank=True, null=True)
+    postcode = models.CharField(max_length=128, blank=True, null=True)
+    region = models.CharField(max_length=128, blank=True, null=True)
+    country = models.CharField(max_length=128, blank=True, null=True)
     label = models.CharField(max_length=128, blank=True, null=True)
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="addresses")
 
 class ContactPhone(models.Model):
     value = models.CharField(max_length=512, blank=True, null=True)
-    label = models.CharField(max_length=128, blank=True, null=True)
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="phones")
 
 class ClipboardData(models.Model):

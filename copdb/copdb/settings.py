@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     'geolocation',
     'database_size',
     'django_db_logger',
+    'drf_multiple_model',
+    'django_celery_results',
+    'djcelery_email',
 ]
 
 MIDDLEWARE = [
@@ -185,6 +188,8 @@ DJOSER = {
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
+
 AWS_ACCESS_KEY_ID = "AKIAUON5V5A26TORUU5C"
 AWS_SECRET_ACCESS_KEY = "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"
 STATICFILES_LOCATION = 'static'
@@ -199,3 +204,36 @@ STATIC_URL = "https://%s/" % AWS_S3_CUSTOM_DOMAIN
 AWS_LOCATION = 'static'
 #AWS_S3_PUBLIC_URL_STATIC = "https://static.copdb.app/"
 AWS_DEFAULT_ACL = 'public-read'
+
+RABBITMQ_USERNAME = "rabbitadmin"
+RABBITMQ_PASSWORD = "bJYNuU4bEGwubtQqFZ89"
+
+SENDGRID_API_KEY="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"
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_HOST_USER = 'apikey'
+EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+DEFAULT_FROM_EMAIL = "users@copdb.app"
+
+aws_access_key = "AKIA2GVI5VXV2NXOGGMI"
+aws_secret_key = "3g8%2FblI1WY%2FVAbhrPvTsN1u7h9HtIdgzQdEAlE98"
+
+BROKER_URL = "sqs://{aws_access_key}:{aws_secret_key}@".format(
+    aws_access_key=aws_access_key, aws_secret_key=aws_secret_key,
+)
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_DEFAULT_QUEUE = 'copdb-queue'
+CELERY_RESULT_BACKEND = None
+
+BROKER_TRANSPORT_OPTIONS = {
+    'region': 'us-east-1',
+    'polling_interval': 20,
+}
+
+CELERY_RESULT_BACKEND = 'django-db'
+
+FIREBASE_API_KEY = "AIzaSyCLQFQIsFQ5jITyCyCWXQ7ITTQMF945PmY"

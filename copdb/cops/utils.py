@@ -137,3 +137,5 @@ def save_police():
                 Cop.objects.create(first_name=obj["First Name"], last_name=obj["Last Name"], police_department=PoliceDepartment.objects.get())
         except AttributeError:
             print(obj["First Name"], obj["Last Name"])
+
+

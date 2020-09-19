@@ -1,5 +1,5 @@
 from rest_framework import permissions
-rom rest_framework import generics
+from rest_framework import generics
 
 class CreateAccessPermission(permissions.BasePermission):
     message = 'wrong_user'

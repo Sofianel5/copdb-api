@@ -9,8 +9,8 @@ class UserRegistrationSerializer(BaseUserRegistrationSerializer):
 class ExternalAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account 
-        fields = ["id", "first_name", "last_name", "verified", "username", "profile_pic"]
-    
+        fields = ["id", "first_name", "last_name", "verified", "username", "profile_pic", "date_joined"]
+
 class InternalAccountSerializer(serializers.ModelSerializer):
     following = ExternalAccountSerializer(many=True)
     followers = ExternalAccountSerializer(many=True)
@@ -45,14 +45,38 @@ class LocationPingSerializer(serializers.ModelSerializer):
         model = LocationPing  
         fields = "__all__"
 
-class ContactSerializer(serializers.ModelSerializer):
+class ContactEmailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Contact  
+        model = ContactEmail  
+        fields = "__all__"
+
+class ContactPhoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactPhone  
+        fields = "__all__"
+
+class ContactAddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactAddress  
+        fields = "__all__"
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification 
+        fields = ["image", "title", "body", "sent_at"]
+
+class ContactSerializer(serializers.ModelSerializer):
+    addresses = ContactAddressSerializer(many=True)
+    emails = ContactEmailSerializer(many=True)
+    phones = ContactPhoneSerializer(many=True)
+    referenced_user = ExternalAccountSerializer()
+    class Meta:
+        model = Contact
         fields = "__all__"
 
 class ClipboardDataSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ClipboardData  
+        model = ClipboardData 
         fields = "__all__"
 
 class ConnectionSerializer(serializers.ModelSerializer):

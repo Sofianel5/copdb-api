@@ -10,3 +10,10 @@ class CoordinatesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Coordinates
         fields = "__all__"
+
+class CopDBCitySerializer(serializers.ModelSerializer):
+    hq = AddressSerializer()
+    epicenter = CoordinatesSerializer()
+    class Meta:
+        model = CopDBCity
+        fields = "__all__"
