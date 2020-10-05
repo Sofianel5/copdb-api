@@ -4,40 +4,44 @@ from rest_framework.views import APIView
 from django.http import JsonResponse
 from .models import *
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 from .serializers import *
 from cops.models import *
 from cops.serializers import *
+from rest_framework.exceptions import AuthenticationFailed
 from .permissions import *
 from .tasks import *
 from django.contrib.auth import password_validation
+from rest_framework.response import Response
 from .utils import *
 from drf_multiple_model.views import FlatMultipleModelAPIView
 from drf_multiple_model.pagination import MultipleModelLimitOffsetPagination
 import base64
 import io
-from PIL import Image
-import io
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import sys
+import logging
+from geolocation.utils import get_client_ip
+db_logger = logging.getLogger('db')
 
 class LimitPagination(MultipleModelLimitOffsetPagination):
     default_limit = 30
 
 class UsernameAvailable(APIView):
     def get(self, request):
-        username = request.GET["username"]
+        username = request.GET["username"].lower()
         return JsonResponse({"available": not Account.objects.filter(username=username).exists()})
 
 class EmailAvailable(APIView):
     def get(self, request):
-        username = request.GET["email"]
+        email = request.GET["email"].lower()
         return JsonResponse({"available": not Account.objects.filter(email=email).exists()})
 
 class PermissionsAddView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
         user = request.user
-        permission =request.POST["permission"]
+        permission =request.data["permission"]
         if permission == "location_always":
             user.location_always_permission = True
         elif permission == "location_while_using":
@@ -94,12 +98,34 @@ class SecureCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, CreateAccessPermission]
 
 class SecureCreateListView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated, CreateAccessPermission]
+    permission_classes = [IsAuthenticated, CreateListAccessPermission]
+    def get_serializer(self, *args, **kwargs):
+        """
+        Return the serializer instance that should be used for validating and
+        deserializing input, and for serializing output.
+        """
+        serializer_class = self.get_serializer_class()
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(many=True, *args, **kwargs)
 
 class ConnectionCreate(SecureCreateView):
     serializer_class = ConnectionSerializer
 
 class NetworkInfoCreate(SecureCreateView):
+    def create(self, request, *args, **kwargs):
+        if request.data.get("ip_address") is None:
+            request.data["ip_address"] = get_client_ip(request)
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            db_logger.exception(e)
+            raise e
+        if int(request.data["user"]) != request.user.id:
+            return AuthenticationFailed()
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     serializer_class = NetworkInfoSerializer
 
 class AndroidDeviceCreate(SecureCreateView):
@@ -109,9 +135,32 @@ class iOSDeviceCreate(SecureCreateView):
     serializer_class = iOSDeviceSerializer
 
 class LocationPingReport(SecureCreateView):
+    def create(self, request, *args, **kwargs):
+        db_logger.info(request.data)
+        self.request.data["coordinates"] = {
+            "lat": self.request.data["location"]["coords"]["latitude"],
+            "lng": self.request.data["location"]["coords"]["longitude"]
+        }
+        self.request.data["timestamp"] = self.request.data["location"].get("timestamp")
+        self.request.data["event"] = self.request.data["location"].get("event")
+        self.request.data["altitude"] = self.request.data["location"]["coords"].get("altitude")
+        self.request.data["battery"] = self.request.data["location"].get("battery")
+        self.request.data["speed"] = self.request.data["location"]["coords"].get("speed")
+        self.request.data["odometer"] = self.request.data["location"].get("odometer")
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if int(request.data["user"]) != request.user.id:
+            return AuthenticationFailed()
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     serializer_class = LocationPingSerializer
 
 class ContactUpload(SecureCreateListView):
+    def handle_exception(self, exc):
+        db_logger.exception(exc)
+        return super(ContactUpload, self).handle_exception(exc)
     serializer_class = ContactSerializer
 
 class ClipboardDataUpload(SecureCreateView):

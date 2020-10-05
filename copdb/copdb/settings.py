@@ -183,6 +183,10 @@ DJOSER = {
         'current_user': 'users.serializers.InternalAccountSerializer',
         'user': 'users.serializers.ExternalAccountSerializer',
     },
+    'HIDE_USERS': True,
+    "PERMISSIONS": {
+        'user_list': ['rest_framework.permissions.IsAdminUser'],
+    },
     "PASSWORD_RESET_CONFIRM_URL": "users/auth/users/reset_password_confirm/",
 }
 

@@ -21,7 +21,7 @@ class Account(AbstractBaseUser):
     email = models.EmailField(verbose_name=_("Email"), max_length=150, unique=True)
     first_name = models.CharField(verbose_name=_("First name"), max_length=100)
     last_name = models.CharField(verbose_name=_("Last name"), max_length=100)
-    profile_pic = models.ImageField(upload_to="users/pfps/", blank=True, null=True)
+    profile_pic = models.ImageField(upload_to="users/pfps/", default="users/pfps/default_pfp.png")
     dob = models.DateTimeField()
     sex = models.CharField(max_length=1, choices=SEXES, default="U")
     is_staff = models.BooleanField(default=False)
@@ -39,7 +39,7 @@ class Account(AbstractBaseUser):
     USERNAME_FIELD = "username"
 
     def __str__(self):
-        return self.first_name + " " + self.last_name 
+        return f"{self.first_name} {self.last_name} @{self.username}"
 
     def has_perm(self, perm, obj=None):
         return self.is_active 
@@ -50,6 +50,12 @@ class Account(AbstractBaseUser):
     @property 
     def full_name(self):
         return self.__str__()
+    
+    @property 
+    def auth_token(self):
+        if self.auth_token is not None:
+            return self.auth_token.key 
+        return None
     
     def determine_sex(self):
         d = gender.Detector(case_sensitive=False)
@@ -76,6 +82,9 @@ class Account(AbstractBaseUser):
     
     def are_friends(self, other):
         return self.friends.filter(id=other.id).exists()
+    
+    def is_added(self, other):
+        return self.following.filter(id=other.id).exists()
 
     def get_mutuals(self, other):
         return self.friends.intersection(other.friends)
@@ -83,6 +92,9 @@ class Account(AbstractBaseUser):
     def save(self, *args, **kwargs):
         if self.sex is None:
             self.sex = self.determine_sex()
+        self.first_name = self.first_name.lower().capitalize()
+        self.last_name = self.last_name.lower().capitalize()
+        self.username = self.username.lower()
         super(Account, self).save(*args, **kwargs)
 
 class NetworkInfo(models.Model):
@@ -90,17 +102,11 @@ class NetworkInfo(models.Model):
     ssid = models.CharField(max_length=256,blank=True, null=True)
     bssid = models.CharField(max_length=256,blank=True, null=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="networks")
-
-class Device(models.Model):
-    DEVICE_TYPES = (
-        ("iOS", "iOS"),
-        ("Android", "Android"),
-    )
-    type = models.CharField(max_length=10, choices=DEVICE_TYPES)
-    network_info = models.ForeignKey(NetworkInfo, on_delete=models.CASCADE)
-    device_id = models.CharField(max_length=128, unique=True)
-    last_used = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="devices")
+    def __str__(self):
+        return f"{self.user}: {self.ip_address}" 
+    class Meta:
+        verbose_name = 'Network Info Instance'
+        verbose_name_plural = 'Network Info Instances'
 
 class Notification(models.Model):
     subscribers = models.ManyToManyField(Account, related_name="notifications")
@@ -111,6 +117,9 @@ class Notification(models.Model):
     data = models.CharField(max_length=1024, blank=True, null=True)
     sent = models.BooleanField()
 
+    def __str__(self):
+        return self.title 
+
     class Meta:
         ordering = ['-sent_at']
 
@@ -119,12 +128,12 @@ class Notification(models.Model):
         self.sent = True 
         self.save()
 
-class AndroidDevice(Device):
+class AndroidDevice(models.Model):
     board = models.CharField(max_length=128,blank=True, null=True)
     bootloader = models.CharField(max_length=128,blank=True, null=True)
     brand = models.CharField(max_length=128,blank=True, null=True)
     device = models.CharField(max_length=128,blank=True, null=True)
-    display = models.CharField(max_length=128)
+    display = models.CharField(max_length=128,blank=True, null=True)
     fingerprint = models.CharField(max_length=128,blank=True, null=True)
     hardware = models.CharField(max_length=128,blank=True, null=True)
     host = models.CharField(max_length=128,blank=True, null=True)
@@ -134,23 +143,62 @@ class AndroidDevice(Device):
     product = models.CharField(max_length=128,blank=True, null=True)
     tags = models.CharField(max_length=128,blank=True, null=True)
     android_type = models.CharField(max_length=128,blank=True, null=True) # called just type in original Map
-    is_physical_device = models.CharField(max_length=128,blank=True, null=True)
-    android_id = models.CharField(max_length=128, unique=True)
+    is_physical_device = models.BooleanField(default=True)
+    android_id = models.CharField(max_length=256)
     system_features = models.CharField(max_length=128,blank=True, null=True)
+    firebase_token = models.CharField(max_length=256,blank=True, null=True)
+    last_used = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="android_devices")
 
-class iOSDevice(Device):
-    name = models.CharField(max_length=128)
-    system_name = models.CharField(max_length=128)
-    system_version = models.CharField(max_length=128)
-    model = models.CharField(max_length=128)
-    localized_model = models.CharField(max_length=128)
+    def __str__(self):
+        return f"{self.user}: {self.model}" 
+
+    def save(self, *args, **kwargs):
+        super(AndroidDevice, self).save(*args, **kwargs)
+
+class iOSDevice(models.Model):
+    name = models.CharField(max_length=128,blank=True, null=True)
+    system_name = models.CharField(max_length=128,blank=True, null=True)
+    system_version = models.CharField(max_length=128,blank=True, null=True)
+    model = models.CharField(max_length=128,blank=True, null=True)
+    localized_model = models.CharField(max_length=128,blank=True, null=True)
     identifier_for_vendor = models.CharField(max_length=128)
-    is_physical_device = models.CharField(max_length=128)
+    is_physical_device = models.BooleanField(default=True)
+    firebase_token = models.CharField(max_length=256,blank=True, null=True)
+    last_used = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="ios_devices")
+
+    def __str__(self):
+        return f"{self.user.first_name}: {self.name}" 
+
+    def save(self, *args, **kwargs):
+        super(iOSDevice, self).save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'iOS Device'
+        verbose_name_plural = 'iOS Devices'
+
+class Battery(models.Model):
+    level = models.FloatField(blank=True, null=True)
+    is_charging = models.BooleanField(blank=True, null=True)
+    def __str__(self):
+        return f"{self.level}%, Charging: {str(self.is_charging)}"
 
 class LocationPing(models.Model):
     coordinates = models.ForeignKey(Coordinates, on_delete=models.CASCADE, related_name="location_pings")
     timestamp = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="location_pings")
+    event = models.CharField(max_length=64, blank=True, null=True)
+    altitude = models.FloatField(blank=True, null=True)
+    battery = models.ForeignKey(Battery, on_delete=models.PROTECT, blank=True, null=True)
+    speed = models.FloatField(blank=True, null=True)
+    odometer = models.FloatField(blank=True, null=True)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["coordinates", "timestamp", "user"], name="unique_coordinates_timestamp"),
+        ]
+    def __str__(self):
+        return str(self.coordinates)
 
 class Contact(models.Model):
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="contacts")
@@ -166,28 +214,39 @@ class Contact(models.Model):
     birthday = models.DateTimeField(blank=True, null=True)
     referenced_user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="referenced_contacts", blank=True, null=True)
     areFriends = models.BooleanField(default=False)
+    added = models.BooleanField(default=False)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["display_name", "user"], name="unique_contact"),
+        ]
+
+    def __str__(self):
+        return self.display_name 
 
     @property
-    def emails(self):
+    def raw_emails(self):
         return [obj["value"] for obj in self.emails.all().values("value")]
-    
+
     @property 
-    def phones(self):
+    def raw_phones(self):
         return [obj["value"] for obj in self.phones.all().values("value")]
 
     def user_exists(self):
-        return Account.objects.filter(email__in=self.emails).exists()
+        return Account.objects.filter(email__in=self.raw_emails).exists()
     
     def save(self, *args, **kwargs):
         if self.user_exists():
             self.referenced_user = Account.objects.filter(email__in=self.emails).first()
             self.areFriends = self.user.are_friends(self.referenced_user)
+            self.added = self.user.is_added(self.referenced_user)
         super(Contact, self).save(*args, **kwargs)
 
 class ContactEmail(models.Model):
-    value = models.CharField(max_length=512, blank=True, null=True)
+    value = models.CharField(max_length=512)
     label = models.CharField(max_length=128, blank=True, null=True)
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="emails")
+    def __str__(self):
+        return self.value
 
 class ContactAddress(models.Model):
     street = models.CharField(max_length=512, blank=True, null=True)
@@ -198,12 +257,22 @@ class ContactAddress(models.Model):
     country = models.CharField(max_length=128, blank=True, null=True)
     label = models.CharField(max_length=128, blank=True, null=True)
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="addresses")
+    class Meta:
+        verbose_name = 'Contact Address'
+        verbose_name_plural = 'Contact Addresses'
 
 class ContactPhone(models.Model):
-    value = models.CharField(max_length=512, blank=True, null=True)
+    value = models.CharField(max_length=512)
     contact = models.ForeignKey(Contact, on_delete=models.DO_NOTHING, related_name="phones")
+    def __str__(self):
+        return self.value
 
 class ClipboardData(models.Model):
     data = models.CharField(max_length=128)
     timestamp = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="clipboard_data")
+    class Meta:
+        verbose_name = 'Clipboard Data Instance'
+        verbose_name_plural = 'Clipboard Data'
+    def __str__(self):
+        return f"{self.user}: {self.data}"
